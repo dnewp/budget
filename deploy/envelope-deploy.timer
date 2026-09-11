@@ -1,0 +1,12 @@
+[Unit]
+Description=Check GitHub for new Envelope code every five minutes
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5min
+# Nothing here is time critical, so let systemd batch this with other wakeups.
+AccuracySec=1min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

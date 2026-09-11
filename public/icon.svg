@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="A cash envelope">
+  <rect width="512" height="512" rx="96" fill="#154234"/>
+  <!-- Banknotes sitting inside, poking above the envelope mouth -->
+  <rect x="150" y="132" width="104" height="104" rx="8" fill="#8FB8A3"/>
+  <rect x="262" y="116" width="104" height="120" rx="8" fill="#C8DED3"/>
+  <!-- The envelope pouch itself, drawn in front so the notes sit inside it -->
+  <rect x="88" y="216" width="336" height="180" rx="20" fill="#F7F8F6"/>
+  <!-- Fold line across the mouth -->
+  <rect x="88" y="216" width="336" height="26" rx="13" fill="#DCE2DD"/>
+</svg>

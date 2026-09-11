@@ -1,0 +1,12 @@
+[Unit]
+Description=Pull the latest Envelope code and restart if anything changed
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=envelope
+WorkingDirectory=/opt/envelope
+ExecStart=/opt/envelope/deploy/deploy.sh
+StandardOutput=journal
+StandardError=journal
