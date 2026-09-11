@@ -8,6 +8,7 @@ mkdirSync(dataDir, { recursive: true })
 
 export const db = new DatabaseSync(path.join(dataDir, 'budget.db'))
 db.exec('PRAGMA journal_mode = WAL')
+db.exec('PRAGMA foreign_keys = OFF')
 
 // Migrations keyed off PRAGMA user_version. Append a new block, never edit an old one.
 const migrations = [
@@ -92,6 +93,53 @@ const migrations = [
   -- budgeted payment instead of duplicating it and letting the two drift apart.
   ALTER TABLE accounts ADD COLUMN payment_category_id INTEGER REFERENCES categories(id);
   `,
+  `
+  -- Multi-tenant: every budget now belongs to a workspace, and a workspace has
+  -- one or more members, each their own Google identity. Workspace 1 is created
+  -- here so a fresh install and an already-seeded install both land somewhere.
+  CREATE TABLE users (
+    id INTEGER PRIMARY KEY,
+    email TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE TABLE workspaces (
+    id INTEGER PRIMARY KEY,
+    name TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE TABLE workspace_members (
+    workspace_id INTEGER NOT NULL REFERENCES workspaces(id),
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    role TEXT NOT NULL DEFAULT 'member',
+    PRIMARY KEY (workspace_id, user_id)
+  );
+  -- A pending invite by email, not yet a user. Resolved into a workspace_members
+  -- row the first time that email ever signs in (see identity.js).
+  CREATE TABLE workspace_invites (
+    workspace_id INTEGER NOT NULL REFERENCES workspaces(id),
+    email TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (workspace_id, email)
+  );
+  INSERT INTO workspaces (id, name) VALUES (1, 'Personal');
+
+  ALTER TABLE accounts ADD COLUMN workspace_id INTEGER NOT NULL DEFAULT 1 REFERENCES workspaces(id);
+  ALTER TABLE category_groups ADD COLUMN workspace_id INTEGER NOT NULL DEFAULT 1 REFERENCES workspaces(id);
+  ALTER TABLE transactions ADD COLUMN workspace_id INTEGER NOT NULL DEFAULT 1 REFERENCES workspaces(id);
+
+  -- payees was keyed by name alone; two workspaces can both have a "Costco", so
+  -- it needs rebuilding with workspace_id in the key rather than a plain ALTER.
+  ALTER TABLE payees RENAME TO payees_old;
+  CREATE TABLE payees (
+    workspace_id INTEGER NOT NULL REFERENCES workspaces(id),
+    name TEXT NOT NULL,
+    last_category_id INTEGER REFERENCES categories(id),
+    PRIMARY KEY (workspace_id, name)
+  );
+  INSERT INTO payees (workspace_id, name, last_category_id)
+    SELECT 1, name, last_category_id FROM payees_old;
+  DROP TABLE payees_old;
+  `,
 ]
 
 const current = db.prepare('PRAGMA user_version').get().user_version
@@ -100,4 +148,12 @@ for (let v = current; v < migrations.length; v++) {
   db.exec(migrations[v])
   db.exec(`PRAGMA user_version = ${v + 1}`)
   db.exec('COMMIT')
+}
+
+const ownerEmail = process.env.OWNER_EMAIL
+if (ownerEmail) {
+  db.prepare(
+    `INSERT INTO workspace_invites (workspace_id, email) VALUES (1, ?)
+     ON CONFLICT(workspace_id, email) DO NOTHING`
+  ).run(ownerEmail)
 }
