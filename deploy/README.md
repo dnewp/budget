@@ -57,7 +57,7 @@ using and the app arrives with everything already in it.
 
 ```bash
 # from the Windows machine
-scp C:\Users\DillonNewport\code\budget\data\budget.db you@server:/tmp/budget.db
+scp C:\Users\you\code\budget\data\budget.db you@server:/tmp/budget.db
 
 # on the server
 sudo -u envelope mkdir -p /opt/envelope/data
