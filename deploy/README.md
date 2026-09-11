@@ -37,18 +37,18 @@ sudo -u envelope npm ci
 sudo -u envelope npm run build
 ```
 
-## 3. Password and secrets
+## 3. The owner's email
 
 ```bash
-sudo -u envelope npm run set-password -- 'a-real-password'
-```
-
-That writes `BUDGET_PASSWORD_HASH` and a random `SESSION_SECRET` into
-`/opt/envelope/.env`. That file is gitignored and must never be committed.
-
-```bash
+echo "OWNER_EMAIL=you@gmail.com" | sudo -u envelope tee /opt/envelope/.env
 sudo chmod 600 /opt/envelope/.env
 ```
+
+That's the Google account that should land in the pre-existing "Personal"
+workspace instead of getting a brand-new empty one on its first sign-in.
+Everyone else who signs in gets their own workspace automatically, or lands in
+whatever workspace they were invited to from inside the app (see "Sharing" in
+the app once you're in).
 
 ## 4. Bring your data across
 
@@ -96,21 +96,32 @@ The DNS record is created for you.
 
 ## 7. Access, which is the part that matters
 
-The tunnel makes the app reachable from anywhere, and a password is thin cover
-for your entire financial position.
+Cloudflare Access is the entire login system now: there is no app password.
+Getting this step right is not optional.
 
-Zero Trust dashboard, then **Access, Applications, Add a self-hosted
-application**:
+Zero Trust dashboard, then **Settings, Authentication**:
 
-- Domain: `budget.yourdomain.com`
-- Policy: **Allow**, with the selector **Emails** set to your own address
+1. Add a login method: **Google**. Follow Cloudflare's prompts to create a
+   Google OAuth client (Google Cloud Console → APIs & Services → Credentials);
+   Cloudflare shows you exactly what redirect URI to register.
 
-Cloudflare then makes you authenticate before a request ever reaches the server.
-Scanners and bots never touch it, and the app password becomes a second factor
-rather than the only one. This is on the free plan.
+Then **Access, Applications, Add a self-hosted application**:
 
-Once this is on, the `Secure` cookie flag activates by itself, because the app
-can see from `x-forwarded-proto` that the connection is HTTPS.
+- Domain: whatever public hostname you routed the tunnel to
+- Policy: **Allow**, selector **Login Methods**, value **Google**: deliberately
+  not scoped to your email, since anyone with a Google account should be able
+  to sign up for their own budget
+- Under **Settings** for the application, confirm **Add Authorization Header:
+  On**: this is what puts `Cf-Access-Authenticated-User-Email` on every
+  request the app sees, which is the only thing `server/identity.js` trusts
+
+This is a real login gate, not a "thin cover" the way the old email-only
+policy was: Google's own account security (their own 2FA, if the visitor has
+it on) sits in front of everyone who reaches the app, not just you.
+
+Google sign-in is close to instant when the visitor is already signed into
+Google in their browser: no emailed one-time code to wait on, which was the
+whole reason to move off Access's default login method.
 
 ## 8. Updating
 
