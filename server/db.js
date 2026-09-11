@@ -8,7 +8,6 @@ mkdirSync(dataDir, { recursive: true })
 
 export const db = new DatabaseSync(path.join(dataDir, 'budget.db'))
 db.exec('PRAGMA journal_mode = WAL')
-db.exec('PRAGMA foreign_keys = OFF')
 
 // Migrations keyed off PRAGMA user_version. Append a new block, never edit an old one.
 const migrations = [
