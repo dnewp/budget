@@ -34,7 +34,7 @@ function freshDb() {
 test('inviting an email adds a pending invite', async () => {
   const db = freshDb()
   // workspaces.js reads the db module-level import, so this test imports it
-  // fresh per-process via the real module — see Step 3 for why db.js needs no
+  // fresh per-process via the real module. See Step 3 for why db.js needs no
   // change here (it already supports DATA_DIR_OVERRIDE from Task 3).
   const { setDbForTesting } = await import('./workspaces.js')
   setDbForTesting(db)
