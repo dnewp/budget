@@ -8,6 +8,10 @@ const dataDir = process.env.DATA_DIR_OVERRIDE
   : path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'data')
 mkdirSync(dataDir, { recursive: true })
 
+// Load .env so OWNER_EMAIL is available at import time. Best-effort: tests and a
+// fresh dev run have no .env, and that is fine.
+try { process.loadEnvFile(path.join(dataDir, '..', '.env')) } catch {}
+
 export const db = new DatabaseSync(path.join(dataDir, 'budget.db'))
 db.exec('PRAGMA journal_mode = WAL')
 

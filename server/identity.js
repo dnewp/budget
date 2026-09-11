@@ -64,7 +64,8 @@ export function resolveIdentity(db, email) {
 
 export function identityMiddleware(db) {
   return (req, res, next) => {
-    const email = req.headers[ACCESS_EMAIL_HEADER]
+    const email = req.headers[ACCESS_EMAIL_HEADER] ||
+      (process.env.NODE_ENV !== 'production' ? 'dev@localhost' : null)
     if (!email) return res.status(401).json({ error: 'Not signed in' })
 
     const identity = resolveIdentity(db, email)

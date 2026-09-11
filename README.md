@@ -26,10 +26,14 @@ can copy or back up yourself.
 
 ```bash
 npm install
-npm run set-password -- your-password
-npm run seed        # optional starter envelopes, accounts and payees
+npm run seed        # optional starter envelopes, accounts and payees (workspace 1)
 npm run dev         # http://localhost:4517
 ```
+
+Locally, without Cloudflare Access in front of you, every request is treated
+as `dev@localhost`. See `identityMiddleware` in `server/identity.js` if you
+need to test as a different identity; there is no login screen to click
+through.
 
 For a long-lived install:
 
@@ -60,5 +64,6 @@ look unusual.
 ## Your data
 
 `data/` and `.env` are gitignored. The database holds every transaction and
-balance; `.env` holds your password hash and session secret. Neither belongs in
-version control. Back up `data/budget.db` and you have backed up everything.
+balance. `.env` holds `OWNER_EMAIL`, used once to claim the pre-existing
+workspace on first sign-in. It does not belong in version control. Back up
+`data/budget.db` and you have backed up everything.

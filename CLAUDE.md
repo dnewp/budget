@@ -14,11 +14,34 @@ YNAB-style envelope budgeting for a single user. Local hosting for now; will mov
 - **The server needs Node 22.5+ and really wants 24**, because `node:sqlite` does not exist in older releases. Ubuntu's own `nodejs` package is far too old. See `deploy/README.md`.
 - Tests: `npm test`. Target `server/*.test.js` explicitly, never the whole `server/` directory, because a directory run executes `index.js` and hangs on the listening server.
 
-## Auth
+## Identity and workspaces
 
-Single password. `npm run set-password -- <password>` writes a scrypt hash and `SESSION_SECRET` to `.env`. The session cookie is a stateless HMAC under `SESSION_SECRET`; rotating the secret signs out everywhere. `/api/*` requires the cookie except `/api/login`.
+There is no app-level password. Cloudflare Access sits in front of the whole
+app, with Google as the only login method and a policy that allows any
+authenticated Google account through. Access is the gate, not this code.
+Access injects the signed-in email as `Cf-Access-Authenticated-User-Email` on
+every request; `server/identity.js` trusts that header because nothing reaches
+this server except through the tunnel (`HOST=127.0.0.1`).
 
-`sessionCookie()` in `server/auth.js` builds the cookie and always sets `HttpOnly`, `SameSite=Lax` and `Path=/`. **`Secure` is added only when the request is genuinely over HTTPS**, meaning `req.secure` or a leading `x-forwarded-proto: https` from a tunnel or proxy that terminated TLS for us. Setting `Secure` unconditionally would stop the browser returning the cookie over plain HTTP, which presents as being unable to sign in on localhost and is confusing to diagnose. `server/auth.test.js` pins all of this down.
+Every budget belongs to a `workspace`. A user's first-ever sign-in either
+claims a pending invite (if someone invited that email already) or gets a
+fresh personal workspace, never both, and never a second personal workspace
+on a later sign-in. `workspace_members` is the source of truth for who can see
+what; every route in `routes.js` filters by `req.workspaceId`, and every
+mutating route re-checks that the referenced account/category/group actually
+belongs to that workspace before touching it, since a plain GET-scoped query
+alone would not stop someone from guessing another workspace's row id in a
+PATCH or DELETE.
+
+Sharing a budget means inviting a specific email to your workspace
+(`POST /api/workspaces/current/invites`), not sharing a login. The invited
+person still signs in with their own Google account; the invite just
+determines which workspace they land in the first time they do.
+
+Locally, without Cloudflare Access in front of you, `identityMiddleware`
+falls back to treating every request as `dev@localhost` unless
+`NODE_ENV=production`, so there is no login screen to click through in
+development.
 
 ## Money and budgeting rules
 
