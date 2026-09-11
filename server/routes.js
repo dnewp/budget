@@ -58,7 +58,7 @@ export class HttpError extends Error {
 const ACCOUNT_TYPES = ['checking', 'savings', 'credit', 'cash']
 
 // Every mutating route that takes an :id checks the row is actually in the
-// caller's workspace before touching it — otherwise workspace scoping on GETs
+// caller's workspace before touching it. Otherwise workspace scoping on GETs
 // alone would still let someone guess another workspace's account/category ids
 // and edit them directly.
 function ownedAccount(id, workspaceId) {
@@ -113,9 +113,9 @@ routes.post('/accounts', (req, res) => {
   const balance = cents(req.body.starting_balance_cents ?? 0, 'Starting balance')
   if (balance !== 0) {
     db.prepare(
-      `INSERT INTO transactions (account_id, date, payee, amount_cents, cleared)
-       VALUES (?, date('now', 'localtime'), 'Starting balance', ?, 1)`
-    ).run(lastInsertRowid, balance)
+      `INSERT INTO transactions (workspace_id, account_id, date, payee, amount_cents, cleared)
+       VALUES (?, ?, date('now', 'localtime'), 'Starting balance', ?, 1)`
+    ).run(req.workspaceId, lastInsertRowid, balance)
   }
   res.json({ id: Number(lastInsertRowid) })
 })
@@ -161,9 +161,9 @@ routes.patch('/accounts/:id', (req, res) => {
     adjustment = target - current
     if (adjustment !== 0) {
       db.prepare(
-        `INSERT INTO transactions (account_id, date, payee, memo, amount_cents, cleared)
-         VALUES (?, date('now', 'localtime'), 'Balance adjustment', ?, ?, 1)`
-      ).run(id, req.body.memo || 'Set by hand', adjustment)
+        `INSERT INTO transactions (workspace_id, account_id, date, payee, memo, amount_cents, cleared)
+         VALUES (?, ?, date('now', 'localtime'), 'Balance adjustment', ?, ?, 1)`
+      ).run(req.workspaceId, id, req.body.memo || 'Set by hand', adjustment)
     }
   }
   res.json({ ok: true, adjustment_cents: adjustment })
@@ -235,12 +235,12 @@ function rememberPayee(workspaceId, name, categoryId) {
 
 function insertTransaction(workspaceId, t, lines) {
   const insert = db.prepare(
-    `INSERT INTO transactions (account_id, date, payee, category_id, memo, amount_cents, cleared, split_group)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO transactions (workspace_id, account_id, date, payee, category_id, memo, amount_cents, cleared, split_group)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
   )
   if (!lines) {
     const { lastInsertRowid } = insert.run(
-      t.account_id, t.date, t.payee, t.category_id, t.memo, t.amount_cents, t.cleared, null
+      workspaceId, t.account_id, t.date, t.payee, t.category_id, t.memo, t.amount_cents, t.cleared, null
     )
     rememberPayee(workspaceId, t.payee, t.category_id)
     return Number(lastInsertRowid)
@@ -254,7 +254,7 @@ function insertTransaction(workspaceId, t, lines) {
       .get(workspaceId).m ?? 0) + 1
   for (const line of lines) {
     insert.run(
-      t.account_id, t.date, t.payee, line.category_id,
+      workspaceId, t.account_id, t.date, t.payee, line.category_id,
       line.memo || t.memo, line.amount_cents, t.cleared, group
     )
   }
@@ -262,10 +262,24 @@ function insertTransaction(workspaceId, t, lines) {
   return group
 }
 
+function ensureOwnedCategories(t, lines, workspaceId) {
+  if (t.category_id !== null && !ownedCategory(t.category_id, workspaceId)) {
+    throw new HttpError(400, 'Unknown envelope')
+  }
+  if (lines) {
+    for (const line of lines) {
+      if (line.category_id !== null && !ownedCategory(line.category_id, workspaceId)) {
+        throw new HttpError(400, 'Unknown envelope')
+      }
+    }
+  }
+}
+
 routes.post('/transactions', (req, res) => {
   const t = transactionFields(req.body)
   if (!ownedAccount(t.account_id, req.workspaceId)) throw new HttpError(400, 'Unknown account')
   const lines = splitLines(req.body)
+  ensureOwnedCategories(t, lines, req.workspaceId)
   db.exec('BEGIN')
   try {
     const id = insertTransaction(req.workspaceId, t, lines)
@@ -281,6 +295,7 @@ routes.put('/transactions/:id', (req, res) => {
   const t = transactionFields(req.body)
   if (!ownedAccount(t.account_id, req.workspaceId)) throw new HttpError(400, 'Unknown account')
   const lines = splitLines(req.body)
+  ensureOwnedCategories(t, lines, req.workspaceId)
   const id = Number(req.params.id)
   const existing = ownedTransaction(id, req.workspaceId)
   if (!existing) throw new HttpError(404, 'Transaction not found')
@@ -290,7 +305,10 @@ routes.put('/transactions/:id', (req, res) => {
   db.exec('BEGIN')
   try {
     if (existing.split_group) {
-      db.prepare('DELETE FROM transactions WHERE split_group = ?').run(existing.split_group)
+      db.prepare('DELETE FROM transactions WHERE split_group = ? AND account_id = ?').run(
+        existing.split_group,
+        existing.account_id
+      )
     } else {
       db.prepare('DELETE FROM transactions WHERE id = ?').run(id)
     }
@@ -311,7 +329,10 @@ routes.delete('/transactions/:id', (req, res) => {
     throw new HttpError(409, 'That transaction is reconciled and locked. Undo the reconcile first.')
   }
   if (existing.split_group) {
-    db.prepare('DELETE FROM transactions WHERE split_group = ?').run(existing.split_group)
+    db.prepare('DELETE FROM transactions WHERE split_group = ? AND account_id = ?').run(
+      existing.split_group,
+      existing.account_id
+    )
   } else {
     db.prepare('DELETE FROM transactions WHERE id = ?').run(id)
   }
@@ -375,9 +396,10 @@ routes.post('/reconcile/:month/:accountId', (req, res) => {
       const [y, m] = month.split('-').map(Number)
       const lastDay = new Date(y, m, 0).getDate()
       db.prepare(
-        `INSERT INTO transactions (account_id, date, payee, memo, amount_cents, cleared)
-         VALUES (?, ?, 'Reconciliation Balance Adjustment', ?, ?, 1)`
+        `INSERT INTO transactions (workspace_id, account_id, date, payee, memo, amount_cents, cleared)
+         VALUES (?, ?, ?, 'Reconciliation Balance Adjustment', ?, ?, 1)`
       ).run(
+        req.workspaceId,
         accountId,
         `${month}-${String(lastDay).padStart(2, '0')}`,
         'Created during reconcile',
@@ -425,7 +447,11 @@ routes.patch('/transactions/:id/cleared', (req, res) => {
   if (row.reconciled) throw new HttpError(409, 'That transaction is reconciled and locked')
   const cleared = req.body.cleared ? 1 : 0
   if (row.split_group) {
-    db.prepare('UPDATE transactions SET cleared = ? WHERE split_group = ?').run(cleared, row.split_group)
+    db.prepare('UPDATE transactions SET cleared = ? WHERE split_group = ? AND account_id = ?').run(
+      cleared,
+      row.split_group,
+      row.account_id
+    )
   } else {
     db.prepare('UPDATE transactions SET cleared = ? WHERE id = ?').run(cleared, id)
   }
