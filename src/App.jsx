@@ -1,16 +1,18 @@
 import { useEffect, useState } from 'react'
 import { api } from './api.js'
-import Login from './pages/Login.jsx'
 import Budget from './pages/Budget.jsx'
 import Accounts from './pages/Accounts.jsx'
 import Transactions from './pages/Transactions.jsx'
 import Debt from './pages/Debt.jsx'
+import Workspace from './pages/Workspace.jsx'
+import WorkspaceSwitcher from './components/WorkspaceSwitcher.jsx'
 
 const VIEWS = [
   { id: 'budget', label: 'Budget' },
   { id: 'transactions', label: 'Transactions' },
   { id: 'accounts', label: 'Accounts' },
   { id: 'debt', label: 'Debt' },
+  { id: 'workspace', label: 'Sharing' },
 ]
 
 function currentView() {
@@ -19,23 +21,31 @@ function currentView() {
 }
 
 export default function App() {
-  const [authed, setAuthed] = useState(null) // null = checking
+  const [me, setMe] = useState(null) // null = loading
+  const [error, setError] = useState('')
   const [view, setView] = useState(currentView)
 
   useEffect(() => {
-    api('/me').then(() => setAuthed(true)).catch(() => setAuthed(false))
+    api('/me').then(setMe).catch((e) => setError(e.message))
     const onHash = () => setView(currentView())
-    const onSignedOut = () => setAuthed(false)
     window.addEventListener('hashchange', onHash)
-    window.addEventListener('budget:signed-out', onSignedOut)
-    return () => {
-      window.removeEventListener('hashchange', onHash)
-      window.removeEventListener('budget:signed-out', onSignedOut)
-    }
+    return () => window.removeEventListener('hashchange', onHash)
   }, [])
 
-  if (authed === null) return null
-  if (!authed) return <Login onSignedIn={() => setAuthed(true)} />
+  function switchWorkspace(id) {
+    const url = new URL(window.location.href)
+    url.searchParams.set('workspace', id)
+    window.location.href = url.toString()
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-dvh flex items-center justify-center px-6 text-center">
+        <p className="text-brick">{error}</p>
+      </div>
+    )
+  }
+  if (!me) return null
 
   // App shell: the page itself never scrolls, only <main> does. On iOS the
   // collapsing Safari toolbar changes the visual viewport mid-scroll, which
@@ -45,7 +55,8 @@ export default function App() {
   return (
     <div className="h-dvh flex flex-col md:flex-row overflow-hidden">
       <aside className="hidden md:flex md:flex-col w-56 shrink-0 bg-spruce-deep text-white p-4">
-        <div className="font-display font-extrabold text-2xl mb-8">Envelope</div>
+        <div className="font-display font-extrabold text-2xl mb-4">Envelope</div>
+        <WorkspaceSwitcher workspaces={me.workspaces} currentId={me.workspaceId} onSwitch={switchWorkspace} />
         <nav className="space-y-1">
           {VIEWS.map((v) => (
             <a
@@ -59,12 +70,7 @@ export default function App() {
             </a>
           ))}
         </nav>
-        <button
-          onClick={() => api('/logout', { method: 'POST' }).then(() => setAuthed(false))}
-          className="mt-auto text-left text-white/60 hover:text-white px-3 py-2 text-sm"
-        >
-          Sign out
-        </button>
+        <div className="mt-auto text-white/60 text-sm px-3 py-2 truncate">{me.email}</div>
       </aside>
 
       <main className="flex-1 overflow-y-auto overflow-x-hidden">
@@ -72,6 +78,7 @@ export default function App() {
         {view === 'transactions' && <Transactions />}
         {view === 'accounts' && <Accounts />}
         {view === 'debt' && <Debt />}
+        {view === 'workspace' && <Workspace />}
       </main>
 
       {/* In the layout flow rather than fixed, and padded for the home indicator

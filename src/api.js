@@ -4,10 +4,8 @@ export async function api(path, options = {}) {
     ...options,
     body: options.body ? JSON.stringify(options.body) : undefined,
   })
-  // A 401 anywhere but /login means the session is gone, so bounce to the login screen.
-  if (res.status === 401 && path !== '/login') {
-    window.dispatchEvent(new Event('budget:signed-out'))
-    throw new Error('Not signed in')
+  if (res.status === 401) {
+    throw new Error('Signed out. Reload the page to sign in again.')
   }
   if (!res.ok) {
     const data = await res.json().catch(() => ({}))
