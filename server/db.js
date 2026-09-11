@@ -3,7 +3,9 @@ import { mkdirSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const dataDir = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'data')
+const dataDir = process.env.DATA_DIR_OVERRIDE
+  ? process.env.DATA_DIR_OVERRIDE
+  : path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'data')
 mkdirSync(dataDir, { recursive: true })
 
 export const db = new DatabaseSync(path.join(dataDir, 'budget.db'))
