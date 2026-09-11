@@ -24,8 +24,13 @@ export default function Workspace() {
   }
 
   async function revoke(inviteEmail) {
-    await api(`/workspaces/current/invites/${encodeURIComponent(inviteEmail)}`, { method: 'DELETE' })
-    load()
+    setError('')
+    try {
+      await api(`/workspaces/current/invites/${encodeURIComponent(inviteEmail)}`, { method: 'DELETE' })
+      load()
+    } catch (err) {
+      setError(err.message)
+    }
   }
 
   if (!data) return null
