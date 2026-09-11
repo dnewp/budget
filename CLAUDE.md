@@ -82,13 +82,7 @@ Money reaches an envelope two ways, and a target counts both:
 
 Follow the same rule for any bill somebody else part-funds: keep the true bill as the target and pay their share into the envelope.
 
-`payees` stores regular vendors with `last_category_id`, so picking a payee prefills its usual envelope. Saving a transaction records the payee automatically. `server/seed.js` seeded the initial set from a first pass over real bank exports.
-
-## Food envelopes
-
-Food is split three ways on purpose, because lunch at work and going out are different habits with different fixes: Groceries, Work Lunch (the regular weekday habit plus fast food), Going Out (sit-down places, bars, breweries), and Work Vending (the office market). Targets came from June and July 2026, the only two months in the source data with no travel skewing them. Keep new food payees routed to the right one of these rather than adding a general dining envelope.
-
-Note that banks miscategorize badly: subscriptions routinely arrive tagged "Restaurants/Dining", and petrol stations arrive tagged "Groceries" when they are mostly fuel. Never trust the bank's category column.
+`payees` stores regular vendors with `last_category_id`, so picking a payee prefills its usual envelope. Saving a transaction records the payee automatically, so the payee list builds itself from real use. The starter template seeds no payees; they accumulate as the user enters transactions.
 
 ## Mobile
 
@@ -107,9 +101,9 @@ Managing transactions on the go is the point of the phone layout, not an afterth
 
 The envelope edit panel offers emoji suggestions rather than relying on the OS picker. `EMOJI_HINTS` in `src/pages/Budget.jsx` maps name patterns to emoji, and matches are shown first as the name is typed, followed by `COMMON_EMOJI`. Typing "Motorcycle" surfaces 🏍️ 🛵 🪖 ahead of the generic set. Add a pattern when a new envelope kind has an obvious icon; the OS picker still works in the icon box for anything unlisted.
 
-## Seeding
+## Seeding and the starter template
 
-`npm run seed` creates the envelope structure, payees, and accounts. It refuses to run if any category already exists, so it cannot duplicate them. Re-seeding from scratch means deleting `data/budget.db` first.
+`server/starterTemplate.js` holds the lean default every budget starts from: a handful of groups with one or two envelopes each and a single "Checking" account, no targets and no payees, so a new budget is usable without being overwhelming. `applyStarterTemplate(db, workspaceId)` is the single source of truth, used two ways: `npm run seed` applies it to workspace 1 (refusing if workspace 1 already has groups, so it cannot duplicate), and `resolveIdentity` in `server/identity.js` applies it to every brand-new workspace on first sign-in, so a freshly provisioned user lands in a ready-to-use budget rather than an empty one. Re-seeding workspace 1 from scratch means deleting `data/budget.db` first. Change the default budget shape in `starterTemplate.js` and both paths follow.
 
 ## Project rules (standing)
 
