@@ -31,7 +31,7 @@ function isEmail(value) {
 }
 
 workspaceRoutes.post('/workspaces/current/invites', (req, res) => {
-  const email = req.body.email
+  const email = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : req.body.email
   if (!isEmail(email)) throw new HttpError(400, 'That does not look like an email address')
   const alreadyMember = db
     .prepare(

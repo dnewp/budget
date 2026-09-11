@@ -14,6 +14,7 @@ const ACCESS_EMAIL_HEADER = 'cf-access-authenticated-user-email'
  * @returns {{ userId: number, workspaces: Array<{id: number, name: string, role: string}> }}
  */
 export function resolveIdentity(db, email) {
+  email = String(email).trim().toLowerCase()
   db.exec('BEGIN')
   try {
     let user = db.prepare('SELECT id FROM users WHERE email = ?').get(email)
@@ -64,10 +65,11 @@ export function resolveIdentity(db, email) {
 
 export function identityMiddleware(db) {
   return (req, res, next) => {
-    const email = req.headers[ACCESS_EMAIL_HEADER] ||
+    const rawEmail = req.headers[ACCESS_EMAIL_HEADER] ||
       (process.env.NODE_ENV !== 'production' ? 'dev@localhost' : null)
-    if (!email) return res.status(401).json({ error: 'Not signed in' })
+    if (!rawEmail) return res.status(401).json({ error: 'Not signed in' })
 
+    const email = String(rawEmail).trim().toLowerCase()
     const identity = resolveIdentity(db, email)
     req.user = { id: identity.userId, email }
 

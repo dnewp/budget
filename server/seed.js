@@ -199,7 +199,7 @@ GROUPS.forEach(([groupName, categories], groupIndex) => {
   })
 })
 
-const addPayee = db.prepare('INSERT INTO payees (name, last_category_id) VALUES (?, ?)')
+const addPayee = db.prepare('INSERT INTO payees (workspace_id, name, last_category_id) VALUES (1, ?, ?)')
 for (const [payee, categoryName] of Object.entries(PAYEES)) {
   if (categoryName && !categoryIds.has(categoryName)) {
     throw new Error(`Payee "${payee}" points at unknown envelope "${categoryName}"`)
