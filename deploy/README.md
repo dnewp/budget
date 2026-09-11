@@ -89,7 +89,7 @@ and it is less work:
 2. Name it `envelope`, choose Debian, and copy the install command it shows
 3. Run that command on the server. It installs cloudflared and registers it as a
    service
-4. Add a **Public Hostname**: `budget.dnewport.dev` routed to
+4. Add a **Public Hostname**: `budget.yourdomain.com` routed to
    `http://localhost:4517`
 
 The DNS record is created for you.
@@ -102,7 +102,7 @@ for your entire financial position.
 Zero Trust dashboard, then **Access, Applications, Add a self-hosted
 application**:
 
-- Domain: `budget.dnewport.dev`
+- Domain: `budget.yourdomain.com`
 - Policy: **Allow**, with the selector **Emails** set to your own address
 
 Cloudflare then makes you authenticate before a request ever reaches the server.
