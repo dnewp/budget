@@ -5,7 +5,9 @@ import Accounts from './pages/Accounts.jsx'
 import Transactions from './pages/Transactions.jsx'
 import Debt from './pages/Debt.jsx'
 import Workspace from './pages/Workspace.jsx'
+import Help from './pages/Help.jsx'
 import WorkspaceSwitcher from './components/WorkspaceSwitcher.jsx'
+import Onboarding from './components/Onboarding.jsx'
 
 const VIEWS = [
   { id: 'budget', label: 'Budget' },
@@ -13,6 +15,7 @@ const VIEWS = [
   { id: 'accounts', label: 'Accounts' },
   { id: 'debt', label: 'Debt' },
   { id: 'workspace', label: 'Sharing' },
+  { id: 'help', label: 'Help' },
 ]
 
 function currentView() {
@@ -24,13 +27,25 @@ export default function App() {
   const [me, setMe] = useState(null) // null = loading
   const [error, setError] = useState('')
   const [view, setView] = useState(currentView)
+  const [showOnboarding, setShowOnboarding] = useState(false)
 
   useEffect(() => {
-    api('/me').then(setMe).catch((e) => setError(e.message))
+    api('/me').then((data) => {
+      setMe(data)
+      if (!data.onboarded) setShowOnboarding(true)
+    }).catch((e) => setError(e.message))
     const onHash = () => setView(currentView())
     window.addEventListener('hashchange', onHash)
     return () => window.removeEventListener('hashchange', onHash)
   }, [])
+
+  function closeOnboarding() {
+    setShowOnboarding(false)
+    if (me && !me.onboarded) {
+      setMe((m) => ({ ...m, onboarded: true }))
+      api('/me/onboarded', { method: 'POST' }).catch(() => {})
+    }
+  }
 
   function switchWorkspace(id) {
     const url = new URL(window.location.href)
@@ -79,7 +94,10 @@ export default function App() {
         {view === 'accounts' && <Accounts />}
         {view === 'debt' && <Debt />}
         {view === 'workspace' && <Workspace />}
+        {view === 'help' && <Help onReplay={() => setShowOnboarding(true)} />}
       </main>
+
+      <Onboarding open={showOnboarding} onClose={closeOnboarding} />
 
       {/* In the layout flow rather than fixed, and padded for the home indicator
           so the last tab is not under the gesture bar. */}

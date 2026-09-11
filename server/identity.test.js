@@ -16,6 +16,17 @@ function freshDb() {
       workspace_id INTEGER NOT NULL, email TEXT NOT NULL, created_at TEXT,
       PRIMARY KEY (workspace_id, email)
     );
+    CREATE TABLE category_groups (
+      id INTEGER PRIMARY KEY, workspace_id INTEGER NOT NULL, name TEXT NOT NULL,
+      sort_order INTEGER NOT NULL DEFAULT 0
+    );
+    CREATE TABLE categories (
+      id INTEGER PRIMARY KEY, group_id INTEGER NOT NULL, name TEXT NOT NULL,
+      emoji TEXT, sort_order INTEGER NOT NULL DEFAULT 0
+    );
+    CREATE TABLE accounts (
+      id INTEGER PRIMARY KEY, workspace_id INTEGER NOT NULL, name TEXT NOT NULL, type TEXT NOT NULL
+    );
     INSERT INTO workspaces (id, name, created_at) VALUES (1, 'Personal', datetime('now'));
     INSERT INTO workspace_invites (workspace_id, email, created_at) VALUES (1, 'owner@example.com', datetime('now'));
   `)

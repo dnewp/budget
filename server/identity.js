@@ -6,6 +6,8 @@
 // in, so a request that has the header got it from Access, not from a client
 // that typed it in.
 
+import { applyStarterTemplate } from './starterTemplate.js'
+
 const ACCESS_EMAIL_HEADER = 'cf-access-authenticated-user-email'
 
 /**
@@ -42,9 +44,11 @@ export function resolveIdentity(db, email) {
       const { lastInsertRowid } = db
         .prepare('INSERT INTO workspaces (name) VALUES (?)')
         .run(`${email}'s Budget`)
+      const newWorkspaceId = Number(lastInsertRowid)
       db.prepare(
         `INSERT INTO workspace_members (workspace_id, user_id, role) VALUES (?, ?, 'owner')`
-      ).run(lastInsertRowid, user.id)
+      ).run(newWorkspaceId, user.id)
+      applyStarterTemplate(db, newWorkspaceId)
     }
 
     const workspaces = db

@@ -15,11 +15,13 @@ test('npm run seed populates a fresh database without rolling back', (t) => {
   const payees = db.prepare('SELECT COUNT(*) AS n FROM payees').get().n
   const cats = db.prepare('SELECT COUNT(*) AS n FROM categories').get().n
   const accts = db.prepare('SELECT COUNT(*) AS n FROM accounts').get().n
-  assert.ok(payees > 0, 'payees seeded')
+  assert.equal(payees, 0, 'lean starter seeds no payees')
   assert.ok(cats > 0, 'categories seeded')
   assert.ok(accts > 0, 'accounts seeded')
-  // every seeded payee belongs to workspace 1
-  const orphan = db.prepare('SELECT COUNT(*) AS n FROM payees WHERE workspace_id IS NULL OR workspace_id != 1').get().n
-  assert.equal(orphan, 0, 'all payees in workspace 1')
+  // every seeded group/account belongs to workspace 1
+  const orphanGroups = db.prepare('SELECT COUNT(*) AS n FROM category_groups WHERE workspace_id != 1').get().n
+  const orphanAccounts = db.prepare('SELECT COUNT(*) AS n FROM accounts WHERE workspace_id != 1').get().n
+  assert.equal(orphanGroups, 0, 'all groups in workspace 1')
+  assert.equal(orphanAccounts, 0, 'all accounts in workspace 1')
   db.close()
 })

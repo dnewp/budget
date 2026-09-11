@@ -85,7 +85,18 @@ function ownedTransaction(id, workspaceId) {
 }
 
 routes.get('/me', (req, res) => {
-  res.json({ email: req.user.email, workspaces: req.workspaces, workspaceId: req.workspaceId })
+  const row = db.prepare('SELECT onboarded FROM users WHERE id = ?').get(req.user.id)
+  res.json({
+    email: req.user.email,
+    workspaces: req.workspaces,
+    workspaceId: req.workspaceId,
+    onboarded: Boolean(row?.onboarded),
+  })
+})
+
+routes.post('/me/onboarded', (req, res) => {
+  db.prepare('UPDATE users SET onboarded = 1 WHERE id = ?').run(req.user.id)
+  res.json({ ok: true })
 })
 
 routes.get('/accounts', (req, res) => {

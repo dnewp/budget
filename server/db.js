@@ -145,6 +145,12 @@ const migrations = [
     SELECT 1, name, last_category_id FROM payees_old;
   DROP TABLE payees_old;
   `,
+  `
+  -- Whether this user has completed (or dismissed) the first-login onboarding
+  -- walkthrough. Per-user, not per-workspace, since a second workspace member
+  -- still needs their own tour.
+  ALTER TABLE users ADD COLUMN onboarded INTEGER NOT NULL DEFAULT 0;
+  `,
 ]
 
 const current = db.prepare('PRAGMA user_version').get().user_version

@@ -49,10 +49,14 @@ test('two workspaces cannot see each other\'s accounts', async (t) => {
   const aliceView = await call('/api/accounts', {}, asAlice.headers)
   const bobView = await call('/api/accounts', {}, asBob.headers)
 
-  assert.equal(aliceView.body.length, 1)
-  assert.equal(aliceView.body[0].name, "Alice's Checking")
-  assert.equal(bobView.body.length, 1)
-  assert.equal(bobView.body[0].name, "Bob's Checking")
+  // Each new workspace also gets the starter template's "Checking" account, so
+  // there are two accounts per workspace, not one.
+  assert.equal(aliceView.body.length, 2)
+  assert.ok(aliceView.body.some((a) => a.name === "Alice's Checking"))
+  assert.ok(!aliceView.body.some((a) => a.name === "Bob's Checking"))
+  assert.equal(bobView.body.length, 2)
+  assert.ok(bobView.body.some((a) => a.name === "Bob's Checking"))
+  assert.ok(!bobView.body.some((a) => a.name === "Alice's Checking"))
 })
 
 function makeCaller(port) {
