@@ -15,6 +15,10 @@ test('accounts, category_groups, and transactions carry a workspace_id', () => {
 })
 
 test('payees is keyed by (workspace_id, name)', () => {
+  // Create workspace 2 for this test (ignore if already exists)
+  db.prepare('INSERT OR IGNORE INTO workspaces (id, name) VALUES (2, ?)').run('Test Workspace')
+  // Clean up any existing test data
+  db.prepare('DELETE FROM payees WHERE workspace_id IN (1, 2) AND name = ?').run('Same Name')
   db.prepare('INSERT INTO payees (workspace_id, name) VALUES (1, ?)').run('Same Name')
   db.prepare('INSERT INTO payees (workspace_id, name) VALUES (2, ?)').run('Same Name')
   const rows = db.prepare('SELECT workspace_id, name FROM payees WHERE name = ?').all('Same Name')
